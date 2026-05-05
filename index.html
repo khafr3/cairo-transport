@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cairo Smart Transport — CSE112</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Cairo:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --border: #1e3a5f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, #0a0e1a 0%, #0d1b35 50%, #0a1628 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'Space Mono', monospace; font-size: 1.4rem; color: var(--accent); letter-spacing: -1px; }
+  .logo span { color: var(--accent2); }
+  .subtitle { color: var(--muted); font-size: 0.8rem; margin-left: auto; font-family: 'Space Mono', monospace; }
+  .header-badge {
+    background: linear-gradient(135deg, var(--accent3), var(--accent));
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 0.7rem; font-family: 'Space Mono', monospace; color: white;
+  }
+
+  /* LAYOUT */
+  .layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 60px); }
+
+  /* SIDEBAR */
+  sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .sidebar-section { padding: 8px 20px 4px; font-size: 0.65rem; color: var(--muted); letter-spacing: 2px; font-family: 'Space Mono', monospace; text-transform: uppercase; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px; cursor: pointer;
+    border: none; background: transparent;
+    color: var(--muted); font-family: 'Cairo', sans-serif; font-size: 0.9rem;
+    text-align: left; width: 100%; transition: all 0.2s;
+    border-left: 3px solid transparent;
+  }
+  .nav-btn:hover { background: var(--surface2); color: var(--text); }
+  .nav-btn.active { background: rgba(0,212,255,0.08); color: var(--accent); border-left-color: var(--accent); }
+  .nav-icon { font-size: 1.2rem; width: 24px; text-align: center; }
+  .nav-badge { margin-left: auto; background: var(--accent3); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; font-family: 'Space Mono', monospace; }
+
+  /* MAIN CONTENT */
+  main { padding: 28px; overflow-y: auto; }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* PAGE HEADER */
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+  .page-title span { color: var(--accent); }
+  .page-desc { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem; letter-spacing: 1px;
+    color: var(--accent); text-transform: uppercase;
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* GRID HELPERS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  /* STAT CARDS */
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-value { font-size: 2rem; font-weight: 700; font-family: 'Space Mono', monospace; color: var(--accent); }
+  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+  /* CONTROLS */
+  .control-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  select, .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  select:focus, .btn:hover { border-color: var(--accent); outline: none; }
+  .btn-primary { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
+  .btn-primary:hover { background: #00b8d9; }
+  .btn-danger { background: var(--red); color: white; border-color: var(--red); }
+  .label { font-size: 0.82rem; color: var(--muted); }
+
+  /* CANVAS / MAP */
+  canvas { display: block; border-radius: 8px; background: #0d1520; border: 1px solid var(--border); }
+
+  /* PATH RESULT */
+  .path-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+  }
+  .path-nodes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .path-node {
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+  }
+  .path-arrow { color: var(--muted); align-self: center; }
+
+  /* ALGORITHM STATUS */
+  .algo-step {
+    display: flex; gap: 12px; padding: 10px 14px;
+    border-radius: 8px; margin-bottom: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .step-num {
+    background: var(--accent3); color: white;
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-family: 'Space Mono', monospace; flex-shrink: 0;
+  }
+  .step-text { font-size: 0.85rem; color: var(--text); line-height: 1.5; }
+  .step-sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+  /* BADGES */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 0.72rem; font-family: 'Space Mono', monospace;
+  }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-red   { background: rgba(239,68,68,0.15);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+  .badge-yellow{ background: rgba(245,158,11,0.15); color: var(--yellow);border: 1px solid rgba(245,158,11,0.3); }
+  .badge-blue  { background: rgba(0,212,255,0.15);  color: var(--accent);border: 1px solid rgba(0,212,255,0.3); }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  th { background: var(--surface2); padding: 10px 12px; text-align: left; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.72rem; letter-spacing: 1px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* CONGESTION BAR */
+  .cong-bar { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .cong-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+  /* COMPARISON */
+  .compare-col { border-left: 3px solid var(--accent); padding-left: 16px; }
+  .compare-col.astar { border-left-color: var(--accent2); }
+
+  /* TOOLTIP */
+  .tooltip { font-size: 0.78rem; color: var(--muted); }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    sidebar { display: flex; flex-direction: row; overflow-x: auto; padding: 0; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Cairo<span>Transport</span></div>
+  <div class="header-badge">CSE112 · Spring 2026</div>
+  <div class="subtitle">Smart City Transportation Network Optimization</div>
+</header>
+
+<div class="layout">
+<sidebar>
+  <div class="sidebar-section">Overview</div>
+  <button class="nav-btn active" onclick="showPage(event, 'dashboard')">
+    <span class="nav-icon">🗺️</span> Network Map
+  </button>
+
+  <div class="sidebar-section">Algorithms</div>
+  <button class="nav-btn" onclick="showPage(event, 'mst')">
+    <span class="nav-icon">🌐</span> MST — Infrastructure
+    <span class="nav-badge">Kruskal</span>
+  </button>
+  <button class="nav-btn" onclick="showPage(event, 'dijkstra')">
+    <span class="nav-icon">📍</span> Dijkstra — Routing
+  </button>
+  <button class="nav-btn" onclick="showPage(event, 'astar')">
+    <span class="nav-icon">🚑</span> A* — Emergency
+  </button>
+  <button class="nav-btn" onclick="showPage(event, 'compare')">
+    <span class="nav-icon">⚡</span> Algorithm Comparison
+    <span class="nav-badge">Bonus</span>
+  </button>
+
+  <div class="sidebar-section">Optimization</div>
+  <button class="nav-btn" onclick="showPage(event, 'dp')">
+    <span class="nav-icon">🚌</span> DP — Transit Schedule
+  </button>
+  <button class="nav-btn" onclick="showPage(event, 'greedy')">
+    <span class="nav-icon">🚦</span> Greedy — Traffic Signals
+  </button>
+  <button class="nav-btn" onclick="showPage(event, 'ml')">
+    <span class="nav-icon">🤖</span> ML — Prediction
+    <span class="nav-badge">Bonus</span>
+  </button>
+</sidebar>
+
+<main>
+
+<!-- =================== DASHBOARD =================== -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div class="page-title">Greater Cairo — <span>Transportation Network</span></div>
+    <div class="page-desc">15 districts · 10 key facilities · 28 road connections · 3 metro lines · 10 bus routes</div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px">
+    <div class="stat-card">
+      <div class="stat-value">15</div>
+      <div class="stat-label">Districts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--green)">28</div>
+      <div class="stat-label">Existing Roads</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--yellow)">15</div>
+      <div class="stat-label">Potential New Roads</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent2)">3.5M</div>
+      <div class="stat-label">Daily Metro Riders</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📍 Network Visualization</div>
+    <div class="control-row">
+      <span class="label">Show:</span>
+      <button class="btn btn-primary" onclick="drawNetwork('all')">All Roads</button>
+      <button class="btn" onclick="drawNetwork('existing')">Existing Only</button>
+      <button class="btn" onclick="drawNetwork('metro')">Metro Lines</button>
+      <button class="btn" onclick="drawNetwork('mst')">MST Network</button>
+    </div>
+    <canvas id="networkCanvas" width="820" height="420"></canvas>
+    <div style="margin-top:10px;display:flex;gap:20px;font-size:0.78rem;color:var(--muted)">
+      <span>🔵 District</span><span>🟡 Facility</span>
+      <span style="color:var(--accent)">— Existing Road</span>
+      <span style="color:var(--accent2)">-- Potential Road</span>
+      <span style="color:var(--green)">—— Metro Line</span>
+    </div>
+  </div>
+</div>
+
+<!-- =================== MST =================== -->
+<div class="page" id="page-mst">
+  <div class="page-header">
+    <div class="page-title">Kruskal's <span>Minimum Spanning Tree</span></div>
+    <div class="page-desc">Infrastructure network design — minimize construction cost while ensuring full connectivity</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">⚙️ Algorithm Parameters</div>
+      <div style="margin-bottom:14px">
+        <label class="label">Include potential new roads:</label><br>
+        <div style="margin-top:8px;display:flex;gap:10px">
+          <button class="btn btn-primary" id="mstExisting" onclick="runMST(false)">Existing Roads Only</button>
+          <button class="btn" id="mstAll" onclick="runMST(true)">Include New Roads</button>
+        </div>
+      </div>
+      <div class="card-title">📊 Complexity Analysis</div>
+      <div class="algo-step">
+        <div class="step-num">T</div>
+        <div><div class="step-text">Time Complexity: <strong>O(E log E)</strong></div>
+        <div class="step-sub">Dominated by sorting edges. E = number of edges ≈ 28–43</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">S</div>
+        <div><div class="step-text">Space Complexity: <strong>O(V + E)</strong></div>
+        <div class="step-sub">Union-Find structure + edge list storage</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">✓</div>
+        <div><div class="step-text">Priority Weighting</div>
+        <div class="step-sub">High-population areas and critical facilities (hospitals, govt) get lower edge weights → prioritized in MST</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📈 MST Results</div>
+      <div id="mstResults">
+        <div style="color:var(--muted);font-size:0.85rem">Click a button to run Kruskal's algorithm →</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗺️ MST Network Visualization</div>
+    <canvas id="mstCanvas" width="820" height="380"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 MST Edge List</div>
+    <div id="mstEdgeTable"></div>
+  </div>
+</div>
+
+<!-- =================== DIJKSTRA =================== -->
+<div class="page" id="page-dijkstra">
+  <div class="page-header">
+    <div class="page-title">Dijkstra's <span>Shortest Path</span></div>
+    <div class="page-desc">Standard route planning with time-varying traffic conditions</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🔎 Route Query</div>
+      <div class="control-row" style="flex-direction:column;align-items:stretch">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div class="label" style="margin-bottom:6px">From:</div>
+            <select id="dijkSource" style="width:100%"></select>
+          </div>
+          <div>
+            <div class="label" style="margin-bottom:6px">To:</div>
+            <select id="dijkTarget" style="width:100%"></select>
+          </div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:6px">Time Period:</div>
+          <select id="dijkTime" style="width:100%">
+            <option value="morning">Morning Rush (6-10 AM)</option>
+            <option value="afternoon" selected>Afternoon (10 AM-4 PM)</option>
+            <option value="evening">Evening Rush (4-9 PM)</option>
+            <option value="night">Night (9 PM-6 AM)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="runDijkstra()">Find Shortest Path</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Complexity</div>
+      <div class="algo-step">
+        <div class="step-num">T</div>
+        <div><div class="step-text">Time: <strong>O((V+E) log V)</strong></div>
+        <div class="step-sub">Min-heap priority queue implementation</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">S</div>
+        <div><div class="step-text">Space: <strong>O(V)</strong></div>
+        <div class="step-sub">Distance array + priority queue + predecessor map</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">⏰</div>
+        <div><div class="step-text">Time-Dependent Modification</div>
+        <div class="step-sub">Edge weights adjusted by congestion ratio: w = dist × (1 + 2 × flow/capacity)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📍 Route Result</div>
+    <div id="dijkResult" style="color:var(--muted);font-size:0.85rem">Select source, target, and time period then click Find Shortest Path.</div>
+    <canvas id="dijkCanvas" width="820" height="320" style="margin-top:14px"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 All Distances from Source</div>
+    <div id="dijkAllDist"></div>
+  </div>
+</div>
+
+<!-- =================== A* =================== -->
+<div class="page" id="page-astar">
+  <div class="page-header">
+    <div class="page-title">A* Search — <span>Emergency Routing</span></div>
+    <div class="page-desc">Emergency vehicle routing to medical facilities with geographic heuristic (Haversine distance)</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🚑 Emergency Query</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div class="label" style="margin-bottom:6px">Emergency Location:</div>
+          <select id="astarSource" style="width:100%"></select>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:6px">Target Facility:</div>
+          <select id="astarTarget" style="width:100%">
+            <option value="F9">Qasr El Aini Hospital</option>
+            <option value="F10">Maadi Military Hospital</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div class="label" style="margin-bottom:6px">Traffic Conditions:</div>
+        <select id="astarTime" style="width:100%">
+          <option value="morning">Morning Rush</option>
+          <option value="afternoon" selected>Afternoon</option>
+          <option value="evening">Evening Rush</option>
+        </select>
+      </div>
+      <button class="btn btn-danger" onclick="runAstar()">🚨 Route Emergency Vehicle</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ A* vs Dijkstra</div>
+      <div class="algo-step">
+        <div class="step-num">h</div>
+        <div><div class="step-text">Heuristic: <strong>Haversine Distance</strong></div>
+        <div class="step-sub">f(n) = g(n) + h(n) where h = geographic distance to goal × 111 km/degree</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">T</div>
+        <div><div class="step-text">Time: <strong>O(E log V)</strong> best case</div>
+        <div class="step-sub">Fewer nodes explored vs Dijkstra when heuristic is tight</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">🚨</div>
+        <div><div class="step-text">Emergency Mode</div>
+        <div class="step-sub">Uses raw distance weights (ignores traffic) — emergency vehicles have right-of-way</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗺️ Emergency Route</div>
+    <div id="astarResult" style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Select location and target facility, then click Route Emergency Vehicle.</div>
+    <canvas id="astarCanvas" width="820" height="320"></canvas>
+  </div>
+
+  <div class="card" id="astarPreemption" style="display:none">
+    <div class="card-title">🚦 Signal Preemption Plan</div>
+    <div id="preemptionList"></div>
+  </div>
+</div>
+
+<!-- =================== COMPARE =================== -->
+<div class="page" id="page-compare">
+  <div class="page-header">
+    <div class="page-title">Algorithm <span>Comparison</span> — Bonus Visualizer</div>
+    <div class="page-desc">Side-by-side Dijkstra vs A* race animation showing nodes explored and path found</div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div>
+      <div class="label" style="margin-bottom:6px">From:</div>
+      <select id="cmpSource" style="width:100%"></select>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">To:</div>
+      <select id="cmpTarget" style="width:100%"></select>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="runComparison()" style="margin-bottom:20px">▶ Start Race Animation</button>
+
+  <div class="grid-2">
+    <div class="card compare-col">
+      <div class="card-title">📍 Dijkstra's Algorithm</div>
+      <canvas id="cmpDijkCanvas" width="380" height="300"></canvas>
+      <div id="cmpDijkStats" style="margin-top:12px"></div>
+    </div>
+    <div class="card compare-col astar">
+      <div class="card-title" style="color:var(--accent2)">⭐ A* Search</div>
+      <canvas id="cmpAstarCanvas" width="380" height="300"></canvas>
+      <div id="cmpAstarStats" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">📊 Performance Comparison</div>
+    <canvas id="cmpBarCanvas" width="820" height="220"></canvas>
+  </div>
+</div>
+
+<!-- =================== DP =================== -->
+<div class="page" id="page-dp">
+  <div class="page-header">
+    <div class="page-title">Dynamic Programming — <span>Transit Optimization</span></div>
+    <div class="page-desc">Bus scheduling + road maintenance resource allocation using DP knapsack approach</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🚌 Bus Scheduling DP</div>
+      <div style="margin-bottom:12px">
+        <div class="label">Total buses available:</div>
+        <input type="range" id="busSlider" min="100" max="400" value="214"
+          oninput="document.getElementById('busCount').textContent=this.value;runDP()"
+          style="width:100%;margin-top:8px;accent-color:var(--accent)">
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--muted)">
+          <span>100</span><span id="busCount" style="color:var(--accent);font-family:'Space Mono',monospace;font-weight:700">214</span><span>400</span>
+        </div>
+      </div>
+      <div class="card-title">Complexity</div>
+      <div class="algo-step">
+        <div class="step-num">T</div>
+        <div><div class="step-text">Time: <strong>O(R × B)</strong></div>
+        <div class="step-sub">R = routes (10), B = bus count. DP table = 10 × 400 = 4,000 cells</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">S</div>
+        <div><div class="step-text">Space: <strong>O(R × B)</strong></div>
+        <div class="step-sub">Can be optimized to O(B) using rolling array technique</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Allocation Result</div>
+      <div id="dpBusResult" style="color:var(--muted);font-size:0.85rem">Loading...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🛣️ Road Maintenance DP</div>
+    <div style="margin-bottom:14px">
+      <div class="label">Budget (Million EGP):</div>
+      <input type="range" id="budgetSlider" min="100" max="1000" value="500"
+        oninput="document.getElementById('budgetVal').textContent=this.value;runMaintenance()"
+        style="width:100%;margin-top:8px;accent-color:var(--accent2)">
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--muted)">
+        <span>100M</span><span id="budgetVal" style="color:var(--accent2);font-family:'Space Mono',monospace;font-weight:700">500</span><span>1000M EGP</span>
+      </div>
+    </div>
+    <div id="dpMaintenanceResult" style="color:var(--muted);font-size:0.85rem">Loading...</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📈 Bus Allocation Visualization</div>
+    <canvas id="dpCanvas" width="820" height="260"></canvas>
+  </div>
+</div>
+
+<!-- =================== GREEDY =================== -->
+<div class="page" id="page-greedy">
+  <div class="page-header">
+    <div class="page-title">Greedy — <span>Traffic Signal Optimization</span></div>
+    <div class="page-desc">Real-time signal timing based on congestion ratios. Green time proportional to traffic demand.</div>
+  </div>
+
+  <div class="control-row">
+    <span class="label">Time Period:</span>
+    <select id="greedyTime" onchange="runGreedy()">
+      <option value="morning">Morning Rush (6-10 AM)</option>
+      <option value="afternoon">Afternoon</option>
+      <option value="evening">Evening Rush</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">⚙️ Algorithm Details</div>
+      <div class="algo-step">
+        <div class="step-num">1</div>
+        <div><div class="step-text">Compute congestion ratio = flow / capacity for each road</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">2</div>
+        <div><div class="step-text">Sort roads at intersection by ratio (descending)</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">3</div>
+        <div><div class="step-text">Allocate green time proportionally: green = (ratio / total) × 120s</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">T</div>
+        <div><div class="step-text">Time: <strong>O(I × R log R)</strong></div>
+        <div class="step-sub">I = intersections, R = roads per intersection. Greedy: fast but suboptimal globally</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">⚠️</div>
+        <div><div class="step-text">Suboptimal Cases</div>
+        <div class="step-sub">Greedy ignores downstream cascade effects — optimizing one intersection may worsen adjacent ones</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🚦 Signal Plans</div>
+      <div id="greedyResult" style="color:var(--muted);font-size:0.85rem">Loading...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 Congestion Map</div>
+    <canvas id="greedyCanvas" width="820" height="300"></canvas>
+  </div>
+</div>
+
+<!-- =================== ML =================== -->
+<div class="page" id="page-ml">
+  <div class="page-header">
+    <div class="page-title">ML — <span>Traffic Prediction</span> (Bonus)</div>
+    <div class="page-desc">Linear regression model trained on temporal traffic patterns to predict congestion levels</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🤖 Model Configuration</div>
+      <div style="display:grid;gap:12px">
+        <div>
+          <div class="label" style="margin-bottom:6px">Road Segment:</div>
+          <select id="mlRoad" onchange="runMLPrediction()" style="width:100%">
+            <option value="0">Maadi ↔ Downtown (1-3)</option>
+            <option value="3">Nasr City ↔ Heliopolis (2-5)</option>
+            <option value="4">Downtown ↔ Heliopolis (3-5)</option>
+            <option value="6">New Cairo ↔ Nasr City (4-2)</option>
+            <option value="8">6th Oct ↔ Giza (7-8)</option>
+            <option value="12">New Capital ↔ New Cairo (13-4)</option>
+            <option value="13">Airport ↔ Heliopolis (F1-5)</option>
+          </select>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:6px">Day Type:</div>
+          <select id="mlDayType" onchange="runMLPrediction()" style="width:100%">
+            <option value="0">Weekday</option>
+            <option value="1">Weekend</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:16px" id="mlMetrics"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Model Performance</div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="stat-card">
+          <div class="stat-value" style="font-size:1.5rem;color:var(--green)" id="mlTrainR2">—</div>
+          <div class="stat-label">Train R²</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="font-size:1.5rem;color:var(--accent)" id="mlTestR2">—</div>
+          <div class="stat-label">Test R²</div>
+        </div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">F</div>
+        <div><div class="step-text">Features Used (6 total)</div>
+        <div class="step-sub">Hour, day type, capacity, sin(hour), cos(hour), road index</div></div>
+      </div>
+      <div class="algo-step">
+        <div class="step-num">📐</div>
+        <div><div class="step-text">Cyclic time encoding</div>
+        <div class="step-sub">sin/cos encoding preserves hour 23→0 continuity for the model</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📈 24-Hour Congestion Prediction</div>
+    <canvas id="mlCanvas" width="820" height="280"></canvas>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ============================================================
+// CAIRO NETWORK DATA
+// ============================================================
+const NODES = {
+  1:  {name:"Maadi",            pop:250000, type:"Residential", x:31.25, y:29.96},
+  2:  {name:"Nasr City",        pop:500000, type:"Mixed",       x:31.34, y:30.06},
+  3:  {name:"Downtown Cairo",   pop:100000, type:"Business",    x:31.24, y:30.04},
+  4:  {name:"New Cairo",        pop:300000, type:"Residential", x:31.47, y:30.03},
+  5:  {name:"Heliopolis",       pop:200000, type:"Mixed",       x:31.32, y:30.09},
+  6:  {name:"Zamalek",          pop:50000,  type:"Residential", x:31.22, y:30.06},
+  7:  {name:"6th October",      pop:400000, type:"Mixed",       x:30.98, y:29.93},
+  8:  {name:"Giza",             pop:550000, type:"Mixed",       x:31.21, y:29.99},
+  9:  {name:"Mohandessin",      pop:180000, type:"Business",    x:31.20, y:30.05},
+  10: {name:"Dokki",            pop:220000, type:"Mixed",       x:31.21, y:30.03},
+  11: {name:"Shubra",           pop:450000, type:"Residential", x:31.24, y:30.11},
+  12: {name:"Helwan",           pop:350000, type:"Industrial",  x:31.33, y:29.85},
+  13: {name:"New Admin Capital",pop:50000,  type:"Government",  x:31.80, y:30.02},
+  14: {name:"Al Rehab",         pop:120000, type:"Residential", x:31.49, y:30.06},
+  15: {name:"Sheikh Zayed",     pop:150000, type:"Residential", x:30.94, y:30.01},
+  "F1": {name:"Cairo Airport",     type:"Airport",    x:31.41, y:30.11},
+  "F2": {name:"Ramses Station",    type:"Transit Hub",x:31.25, y:30.06},
+  "F9": {name:"Qasr El Aini Hosp",type:"Medical",    x:31.23, y:30.03},
+  "F10":{name:"Maadi Mil. Hosp",  type:"Medical",    x:31.25, y:29.95},
+  "F7": {name:"Smart Village",     type:"Business",   x:30.97, y:30.07},
+  "F8": {name:"Cairo Festival",    type:"Commercial", x:31.40, y:30.03},
+};
+
+const EDGES = [
+  [1,3,8.5,3000,7], [1,8,6.2,2500,6], [2,3,5.9,2800,8], [2,5,4.0,3200,9],
+  [3,5,6.1,3500,7], [3,6,3.2,2000,8], [3,9,4.5,2600,6], [3,10,3.8,2400,7],
+  [4,2,15.2,3800,9],[4,14,5.3,3000,10],[5,11,7.9,3100,7],[6,9,2.2,1800,8],
+  [7,8,24.5,3500,8],[7,15,9.8,3000,9],[8,10,3.3,2200,7],[8,12,14.8,2600,5],
+  [9,10,2.1,1900,7],[10,11,8.7,2400,6],[11,"F2",3.6,2200,7],[12,1,12.7,2800,6],
+  [13,4,45.0,4000,10],[14,13,35.5,3800,9],[15,7,9.8,3000,9],
+  ["F1",5,7.5,3500,9],["F1",2,9.2,3200,8],["F2",3,2.5,2000,7],
+  ["F7",15,8.3,2800,8],["F8",4,6.1,3000,9],
+];
+
+const POTENTIAL_EDGES = [
+  [1,4,22.8,4000,450],[1,14,25.3,3800,500],[2,13,48.2,4500,950],
+  [5,4,16.8,3500,320],[6,8,7.5,2500,150],[9,11,6.9,2800,140],
+  [14,5,18.2,3300,360],["F1",13,40.2,4000,800],
+];
+
+const METRO = [
+  {name:"Line 1",color:"#ef4444",stations:[12,1,3,"F2",11]},
+  {name:"Line 2",color:"#10b981",stations:[11,"F2",3,10,8]},
+  {name:"Line 3",color:"#7c3aed",stations:["F1",5,2,3,9]},
+];
+
+const TRAFFIC = {
+  "1-3":  {morning:2800,afternoon:1500,evening:2600,night:800},
+  "1-8":  {morning:2200,afternoon:1200,evening:2100,night:600},
+  "2-3":  {morning:2700,afternoon:1400,evening:2500,night:700},
+  "2-5":  {morning:3000,afternoon:1600,evening:2800,night:650},
+  "3-5":  {morning:3200,afternoon:1700,evening:3100,night:800},
+  "3-6":  {morning:1800,afternoon:1400,evening:1900,night:500},
+  "3-9":  {morning:2400,afternoon:1300,evening:2200,night:550},
+  "3-10": {morning:2300,afternoon:1200,evening:2100,night:500},
+  "4-2":  {morning:3600,afternoon:1800,evening:3300,night:750},
+  "4-14": {morning:2800,afternoon:1600,evening:2600,night:600},
+  "5-11": {morning:2900,afternoon:1500,evening:2700,night:650},
+  "6-9":  {morning:1700,afternoon:1300,evening:1800,night:450},
+  "7-8":  {morning:3200,afternoon:1700,evening:3000,night:700},
+  "7-15": {morning:2800,afternoon:1500,evening:2600,night:600},
+  "8-10": {morning:2000,afternoon:1100,evening:1900,night:450},
+  "8-12": {morning:2400,afternoon:1300,evening:2200,night:500},
+  "9-10": {morning:1800,afternoon:1200,evening:1700,night:400},
+  "10-11":{morning:2200,afternoon:1300,evening:2100,night:500},
+  "11-F2":{morning:2100,afternoon:1200,evening:2000,night:450},
+  "12-1": {morning:2600,afternoon:1400,evening:2400,night:550},
+  "13-4": {morning:3800,afternoon:2000,evening:3500,night:800},
+  "14-13":{morning:3600,afternoon:1900,evening:3300,night:750},
+  "15-7": {morning:2800,afternoon:1500,evening:2600,night:600},
+  "F1-5": {morning:3300,afternoon:2200,evening:3100,night:1200},
+  "F1-2": {morning:3000,afternoon:2000,evening:2800,night:1100},
+  "F2-3": {morning:1900,afternoon:1600,evening:1800,night:900},
+  "F7-15":{morning:2600,afternoon:1500,evening:2400,night:550},
+  "F8-4": {morning:2800,afternoon:1600,evening:2600,night:600},
+};
+
+// ============================================================
+// MAP PROJECTION  (lon/lat → canvas px)
+// ============================================================
+function project(x, y, W, H) {
+  const lonMin=30.90, lonMax=31.85, latMin=29.80, latMax=30.18;
+  const px = (x - lonMin) / (lonMax - lonMin) * (W - 60) + 30;
+  const py = H - ((y - latMin) / (latMax - latMin) * (H - 60) + 30);
+  return {px, py};
+}
+
+function getCoords(id) {
+  const n = NODES[id];
+  return n ? {x: n.x, y: n.y} : {x: 31.24, y: 30.04};
+}
+
+function getName(id) {
+  return NODES[id] ? NODES[id].name : String(id);
+}
+
+function getCongestionColor(ratio) {
+  if (ratio > 0.85) return '#ef4444';
+  if (ratio > 0.70) return '#f59e0b';
+  if (ratio > 0.50) return '#10b981';
+  return '#64748b';
+}
+
+// ============================================================
+// CANVAS DRAWING UTILITIES
+// ============================================================
+function clearCanvas(canvas) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0d1520';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return ctx;
+}
+
+function drawEdges(ctx, edges, W, H, color='#1e3a5f', dashed=false, width=1.5) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  if (dashed) ctx.setLineDash([6,4]);
+  edges.forEach(e => {
+    const c1 = getCoords(e[0]), c2 = getCoords(e[1]);
+    const p1 = project(c1.x, c1.y, W, H);
+    const p2 = project(c2.x, c2.y, W, H);
+    ctx.beginPath(); ctx.moveTo(p1.px, p1.py); ctx.lineTo(p2.px, p2.py); ctx.stroke();
+  });
+  ctx.setLineDash([]); ctx.restore();
+}
+
+function drawNodes(ctx, W, H) {
+  Object.entries(NODES).forEach(([id, node]) => {
+    const {px, py} = project(node.x, node.y, W, H);
+    const isFacility = isNaN(parseInt(id));
+    const r = isFacility ? 7 : Math.max(5, Math.min(10, (node.pop||50000)/60000));
+    const color = isFacility ? '#f59e0b' : '#00d4ff';
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2);
+    ctx.fillStyle = color + '33'; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = color; ctx.font = '9px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(node.name.split(' ')[0], px, py - r - 3);
+  });
+}
+
+function drawPath(ctx, path, W, H, color='#00d4ff', width=3) {
+  if (!path || path.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  path.forEach((id, i) => {
+    const c = getCoords(id);
+    const {px, py} = project(c.x, c.y, W, H);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  // Draw arrows
+  for (let i = 0; i < path.length - 1; i++) {
+    const c1 = getCoords(path[i]), c2 = getCoords(path[i+1]);
+    const p1 = project(c1.x, c1.y, W, H), p2 = project(c2.x, c2.y, W, H);
+    const mx = (p1.px + p2.px)/2, my = (p1.py + p2.py)/2;
+    const ang = Math.atan2(p2.py - p1.py, p2.px - p1.px);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.translate(mx, my); ctx.rotate(ang);
+    ctx.moveTo(6,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.closePath(); ctx.fill();
+    ctx.rotate(-ang); ctx.translate(-mx, -my);
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// GRAPH ALGORITHMS (JS)
+// ============================================================
+function buildGraph(period='afternoon') {
+  const g = {};
+  const nodeIds = Object.keys(NODES);
+  nodeIds.forEach(id => g[id] = []);
+  EDGES.forEach(([u,v,dist,cap,cond]) => {
+    const key = `${u}-${v}`, rkey = `${v}-${u}`;
+    const pat = TRAFFIC[key] || TRAFFIC[rkey];
+    let tw = dist;
+    if (pat) { const flow = pat[period]||pat.afternoon; const cong = Math.min(flow/cap, 1); tw = dist*(1+2*cong); }
+    if (!g[String(u)]) g[String(u)] = [];
+    if (!g[String(v)]) g[String(v)] = [];
+    g[String(u)].push({to:String(v), dist, tw, cap});
+    g[String(v)].push({to:String(u), dist, tw, cap});
+  });
+  return g;
+}
+
+function dijkstraJS(source, target=null, period='afternoon', useTime=true) {
+  const g = buildGraph(period);
+  const src = String(source);
+  const dist = {}; const prev = {}; const visited = new Set();
+  const nodesExplored = [];
+  Object.keys(g).forEach(k => dist[k] = Infinity);
+  dist[src] = 0;
+  const pq = [[0, src]];
+  while (pq.length) {
+    pq.sort((a,b) => a[0]-b[0]);
+    const [d, u] = pq.shift();
+    if (visited.has(u)) continue;
+    visited.add(u); nodesExplored.push(u);
+    if (target && u === String(target)) break;
+    (g[u]||[]).forEach(e => {
+      const w = useTime ? e.tw : e.dist;
+      if (dist[u]+w < dist[e.to]) {
+        dist[e.to] = dist[u]+w; prev[e.to] = u;
+        pq.push([dist[e.to], e.to]);
+      }
+    });
+  }
+  const getPath = t => {
+    const path = []; let cur = String(t);
+    while (prev[cur]) { path.push(cur); cur = prev[cur]; }
+    path.push(src); return path.reverse();
+  };
+  const tgt = target ? String(target) : null;
+  return { dist, prev, nodesExplored, path: tgt ? getPath(tgt) : [], cost: tgt ? dist[tgt] : null };
+}
+
+function haversine(id1, id2) {
+  const c1 = getCoords(id1), c2 = getCoords(id2);
+  return Math.sqrt((c2.x-c1.x)**2 + (c2.y-c1.y)**2) * 111;
+}
+
+function astarJS(source, target, period='afternoon', emergency=true) {
+  const g = buildGraph(period);
+  const src = String(source), tgt = String(target);
+  const gScore = {}; const fScore = {}; const cameFrom = {};
+  const nodesExplored = [];
+  Object.keys(g).forEach(k => { gScore[k]=Infinity; fScore[k]=Infinity; });
+  gScore[src] = 0; fScore[src] = haversine(src, tgt);
+  const open = [[fScore[src], src]]; const closed = new Set();
+  while (open.length) {
+    open.sort((a,b) => a[0]-b[0]);
+    const [, cur] = open.shift();
+    nodesExplored.push(cur);
+    if (cur === tgt) {
+      const path = []; let c = cur;
+      while (cameFrom[c]) { path.push(c); c = cameFrom[c]; } path.push(src);
+      return { cost: gScore[tgt], path: path.reverse(), nodesExplored };
+    }
+    if (closed.has(cur)) continue;
+    closed.add(cur);
+    (g[cur]||[]).forEach(e => {
+      if (closed.has(e.to)) return;
+      const w = emergency ? e.dist : e.tw;
+      const tg = gScore[cur]+w;
+      if (tg < gScore[e.to]) {
+        cameFrom[e.to]=cur; gScore[e.to]=tg;
+        fScore[e.to]=tg+haversine(e.to, tgt);
+        open.push([fScore[e.to], e.to]);
+      }
+    });
+  }
+  return { cost: Infinity, path: [], nodesExplored };
+}
+
+// Kruskal's MST
+function kruskalJS(includeNew=false) {
+  let edges = [...EDGES.map(e => ({u:String(e[0]),v:String(e[1]),dist:e[2],cap:e[3],cond:e[4],isNew:false}))];
+  if (includeNew) {
+    POTENTIAL_EDGES.forEach(e => edges.push({u:String(e[0]),v:String(e[1]),dist:e[2],cap:e[3],cond:8,isNew:true}));
+  }
+  const nodeIds = [...new Set(edges.flatMap(e=>[e.u,e.v]))];
+  const parent = {}; const rank = {};
+  nodeIds.forEach(n => { parent[n]=n; rank[n]=0; });
+  function find(x) { if(parent[x]!==x) parent[x]=find(parent[x]); return parent[x]; }
+  function union(x,y) { const px=find(x),py=find(y); if(px===py) return false; if(rank[px]<rank[py])return union(py,px); parent[py]=px; if(rank[px]===rank[py])rank[px]++; return true; }
+
+  function weight(e) {
+    const pop = (NODES[parseInt(e.u)]?.pop||50000 + NODES[parseInt(e.v)]?.pop||50000)/2;
+    const popF = 1-(pop/600000)*0.4;
+    const isCrit = ['F9','F10','F2','13'].includes(e.u)||['F9','F10','F2','13'].includes(e.v);
+    return e.dist * popF * (isCrit?0.7:1.0) * ((11-e.cond)/10);
+  }
+  edges.sort((a,b) => weight(a)-weight(b));
+  const mst = []; let totalDist=0;
+  edges.forEach(e => { if(union(e.u,e.v)) { mst.push(e); totalDist+=e.dist; } });
+  return {mst, totalDist};
+}
+
+// ============================================================
+// NETWORK MAP
+// ============================================================
+function drawNetwork(mode='all') {
+  const canvas = document.getElementById('networkCanvas');
+  const ctx = clearCanvas(canvas);
+  const W=canvas.width, H=canvas.height;
+
+  if (mode==='mst') {
+    const {mst} = kruskalJS(true);
+    mst.forEach(e => {
+      const c1=getCoords(e.u), c2=getCoords(e.v);
+      const p1=project(c1.x,c1.y,W,H), p2=project(c2.x,c2.y,W,H);
+      ctx.strokeStyle='#00d4ff'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(p1.px,p1.py); ctx.lineTo(p2.px,p2.py); ctx.stroke();
+    });
+  } else {
+    if (mode==='all' || mode==='existing') drawEdges(ctx, EDGES, W, H, '#1e3a5f', false, 1.5);
+    if (mode==='all') drawEdges(ctx, POTENTIAL_EDGES, W, H, '#ff6b3566', true, 1);
+    if (mode==='metro' || mode==='all') {
+      METRO.forEach(line => {
+        ctx.strokeStyle=line.color; ctx.lineWidth=3; ctx.setLineDash([]);
+        ctx.beginPath();
+        line.stations.forEach((s,i) => {
+          const c=getCoords(s); const {px,py}=project(c.x,c.y,W,H);
+          if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+        }); ctx.stroke();
+      });
+    }
+  }
+  drawNodes(ctx, W, H);
+}
+
+// ============================================================
+// MST PAGE
+// ============================================================
+function runMST(includeNew=false) {
+  document.getElementById('mstExisting').className = includeNew ? 'btn' : 'btn btn-primary';
+  document.getElementById('mstAll').className = includeNew ? 'btn btn-primary' : 'btn';
+  const {mst, totalDist} = kruskalJS(includeNew);
+  document.getElementById('mstResults').innerHTML = `
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="stat-card"><div class="stat-value">${mst.length}</div><div class="stat-label">MST Edges</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--green)">${totalDist.toFixed(1)}</div><div class="stat-label">Total km</div></div>
+    </div>
+    <div class="algo-step"><div class="step-num">✓</div><div>
+      <div class="step-text">MST connects all ${Object.keys(NODES).length} nodes</div>
+      <div class="step-sub">Population-weighted edges ensure high-density areas prioritized</div>
+    </div></div>
+    <div class="algo-step"><div class="step-num">🏥</div><div>
+      <div class="step-text">Critical facilities weighted 30% lower</div>
+      <div class="step-sub">Hospitals & government centers always connected</div>
+    </div></div>
+  `;
+  // Draw MST canvas
+  const canvas = document.getElementById('mstCanvas');
+  const ctx = clearCanvas(canvas);
+  const W=canvas.width, H=canvas.height;
+  drawEdges(ctx, EDGES, W, H, '#1e3a5f22', false, 1);
+  mst.forEach(e => {
+    const c1=getCoords(e.u), c2=getCoords(e.v);
+    const p1=project(c1.x,c1.y,W,H), p2=project(c2.x,c2.y,W,H);
+    ctx.strokeStyle = e.isNew ? '#ff6b35' : '#00d4ff'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(p1.px,p1.py); ctx.lineTo(p2.px,p2.py); ctx.stroke();
+  });
+  drawNodes(ctx, W, H);
+  // Edge table
+  document.getElementById('mstEdgeTable').innerHTML = `<table>
+    <tr><th>#</th><th>From</th><th>To</th><th>Distance</th><th>Capacity</th><th>Condition</th><th>Type</th></tr>
+    ${mst.map((e,i) => `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td>${getName(e.u)}</td><td>${getName(e.v)}</td>
+      <td>${e.dist} km</td><td>${e.cap?.toLocaleString()||'—'} v/h</td>
+      <td>${e.cond}/10</td>
+      <td><span class="badge ${e.isNew?'badge-yellow':'badge-blue'}">${e.isNew?'NEW':'EXISTING'}</span></td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+// ============================================================
+// DIJKSTRA PAGE
+// ============================================================
+function populateSelects() {
+  const nodeList = Object.entries(NODES).map(([id,n]) => `<option value="${id}">${n.name}</option>`).join('');
+  ['dijkSource','dijkTarget','astarSource','cmpSource','cmpTarget'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = nodeList;
+  });
+  if (document.getElementById('dijkSource')) document.getElementById('dijkSource').value='2';
+  if (document.getElementById('dijkTarget')) document.getElementById('dijkTarget').value='12';
+  if (document.getElementById('astarSource')) document.getElementById('astarSource').value='7';
+  if (document.getElementById('cmpSource')) document.getElementById('cmpSource').value='7';
+  if (document.getElementById('cmpTarget')) document.getElementById('cmpTarget').value='13';
+}
+
+function runDijkstra() {
+  const src = document.getElementById('dijkSource').value;
+  const tgt = document.getElementById('dijkTarget').value;
+  const period = document.getElementById('dijkTime').value;
+  const result = dijkstraJS(src, tgt, period, true);
+  const {dist, path, cost, nodesExplored} = result;
+
+  const canvas = document.getElementById('dijkCanvas');
+  const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+  drawEdges(ctx, EDGES, W, H, '#1e3a5f', false, 1.5);
+  drawNodes(ctx, W, H);
+  if (path.length>1) drawPath(ctx, path, W, H, '#00d4ff', 3);
+
+  const pathNames = path.map(getName).join(' → ');
+  document.getElementById('dijkResult').innerHTML = `
+    <div class="grid-3" style="margin-bottom:12px">
+      <div class="stat-card"><div class="stat-value" style="font-size:1.5rem">${cost===Infinity?'N/A':cost.toFixed(1)}</div><div class="stat-label">Travel Cost (km×traffic)</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.5rem;color:var(--green)">${path.length}</div><div class="stat-label">Nodes in Path</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.5rem;color:var(--yellow)">${nodesExplored.length}</div><div class="stat-label">Nodes Explored</div></div>
+    </div>
+    <div class="path-nodes">
+      ${path.map((n,i) => `${i>0?'<span class="path-arrow">→</span>':''}<span class="path-node">${getName(n)}</span>`).join('')}
+    </div>
+    <div class="tooltip" style="margin-top:8px">Period: ${period} | Source: ${getName(src)} | Target: ${getName(tgt)}</div>
+  `;
+
+  // All distances table
+  const sorted = Object.entries(dist).filter(([k,v]) => v<Infinity && k!==String(src)).sort((a,b)=>a[1]-b[1]);
+  document.getElementById('dijkAllDist').innerHTML = `<table>
+    <tr><th>Destination</th><th>Cost (weighted km)</th><th>Direct Distance</th></tr>
+    ${sorted.slice(0,10).map(([k,v])=>`<tr><td>${getName(k)}</td><td>${v.toFixed(2)}</td>
+    <td>${haversine(src,k).toFixed(2)} km</td></tr>`).join('')}
+  </table>`;
+}
+
+// ============================================================
+// A* PAGE
+// ============================================================
+function runAstar() {
+  const src = document.getElementById('astarSource').value;
+  const tgt = document.getElementById('astarTarget').value;
+  const period = document.getElementById('astarTime').value;
+  const {cost, path, nodesExplored} = astarJS(src, tgt, period, true);
+
+  const canvas = document.getElementById('astarCanvas');
+  const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+  drawEdges(ctx, EDGES, W, H, '#1e3a5f', false, 1.5);
+  drawNodes(ctx, W, H);
+  if (path.length>1) drawPath(ctx, path, W, H, '#ef4444', 4);
+
+  document.getElementById('astarResult').innerHTML = `
+    <div class="grid-3" style="margin-bottom:12px">
+      <div class="stat-card"><div class="stat-value" style="font-size:1.5rem;color:var(--red)">${cost===Infinity?'N/A':cost.toFixed(1)}</div><div class="stat-label">Route Distance (km)</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.5rem;color:var(--green)">${path.length}</div><div class="stat-label">Path Nodes</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.5rem;color:var(--yellow)">${nodesExplored.length}</div><div class="stat-label">Nodes Explored</div></div>
+    </div>
+    <div class="path-nodes">
+      ${path.map((n,i)=>`${i>0?'<span class="path-arrow" style="color:var(--red)">→</span>':''}<span class="path-node" style="border-color:rgba(239,68,68,0.3);color:var(--red)">${getName(n)}</span>`).join('')}
+    </div>
+    <div class="tooltip" style="margin-top:8px">🚨 Emergency routing — ignores traffic congestion. Heuristic: Haversine distance</div>
+  `;
+
+  // Signal preemption
+  if (path.length>0) {
+    document.getElementById('astarPreemption').style.display='block';
+    document.getElementById('preemptionList').innerHTML = path.map(n=>`
+      <div class="algo-step">
+        <div class="step-num">🟢</div>
+        <div><div class="step-text">Intersection: <strong>${getName(n)}</strong></div>
+        <div class="step-sub">All signals → GREEN for emergency vehicle passage</div></div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// COMPARISON PAGE
+// ============================================================
+function runComparison() {
+  const src = document.getElementById('cmpSource').value;
+  const tgt = document.getElementById('cmpTarget').value;
+  const dRes = dijkstraJS(src, tgt, 'morning', true);
+  const aRes = astarJS(src, tgt, 'morning', false);
+
+  // Draw both canvases
+  ['cmpDijkCanvas','cmpAstarCanvas'].forEach((cid, isAstar) => {
+    const canvas = document.getElementById(cid);
+    const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+    drawEdges(ctx, EDGES, W, H, '#1e3a5f', false, 1);
+    drawNodes(ctx, W, H);
+    const res = isAstar ? aRes : dRes;
+    if (res.path.length>1) drawPath(ctx, res.path, W, H, isAstar?'#ff6b35':'#00d4ff', 3);
+  });
+
+  // Stats
+  document.getElementById('cmpDijkStats').innerHTML = `
+    <div class="grid-2">
+      <div class="stat-card"><div class="stat-value" style="font-size:1.2rem">${dRes.nodesExplored.length}</div><div class="stat-label">Nodes Explored</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.2rem;color:var(--green)">${dRes.path.length}</div><div class="stat-label">Path Length</div></div>
+    </div>
+    <div class="tooltip" style="margin-top:8px">Cost: ${dRes.cost?.toFixed(2)||'N/A'} weighted km</div>`;
+
+  document.getElementById('cmpAstarStats').innerHTML = `
+    <div class="grid-2">
+      <div class="stat-card"><div class="stat-value" style="font-size:1.2rem;color:var(--accent2)">${aRes.nodesExplored.length}</div><div class="stat-label">Nodes Explored</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.2rem;color:var(--green)">${aRes.path.length}</div><div class="stat-label">Path Length</div></div>
+    </div>
+    <div class="tooltip" style="margin-top:8px">Cost: ${aRes.cost?.toFixed(2)||'N/A'} km (direct, heuristic guided)</div>`;
+
+  // Bar chart
+  const canvas = document.getElementById('cmpBarCanvas');
+  const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+  const metrics = [
+    {label:'Nodes\nExplored', dijk:dRes.nodesExplored.length, astar:aRes.nodesExplored.length},
+    {label:'Path\nLength', dijk:dRes.path.length, astar:aRes.path.length},
+    {label:'Cost\n(×10)', dijk:(dRes.cost||0)/10, astar:(aRes.cost||0)/10},
+  ];
+  const maxV = Math.max(...metrics.flatMap(m=>[m.dijk,m.astar]));
+  const barW=80, gap=60, startX=100;
+  metrics.forEach((m,i) => {
+    const x = startX + i*(barW*2+gap);
+    // Dijkstra bar
+    const dh = (m.dijk/maxV)*(H-80);
+    ctx.fillStyle='#00d4ff66'; ctx.fillRect(x, H-dh-30, barW, dh);
+    ctx.fillStyle='#00d4ff'; ctx.fillRect(x, H-dh-30, barW, 3);
+    ctx.fillStyle='#00d4ff'; ctx.font='11px Space Mono'; ctx.textAlign='center';
+    ctx.fillText(m.dijk.toFixed(0), x+barW/2, H-dh-36);
+    // A* bar
+    const ah = (m.astar/maxV)*(H-80);
+    ctx.fillStyle='#ff6b3566'; ctx.fillRect(x+barW+4, H-ah-30, barW, ah);
+    ctx.fillStyle='#ff6b35'; ctx.fillRect(x+barW+4, H-ah-30, barW, 3);
+    ctx.fillStyle='#ff6b35'; ctx.fillText(m.astar.toFixed(0), x+barW+4+barW/2, H-ah-36);
+    // Label
+    ctx.fillStyle='#64748b'; ctx.font='10px Cairo';
+    m.label.split('\n').forEach((l,j) => ctx.fillText(l, x+barW+2, H-10+j*14));
+  });
+  // Legend
+  ctx.fillStyle='#00d4ff'; ctx.fillRect(20,20,16,12); ctx.fillStyle='#e2e8f0'; ctx.font='12px Cairo'; ctx.textAlign='left'; ctx.fillText('Dijkstra',42,31);
+  ctx.fillStyle='#ff6b35'; ctx.fillRect(130,20,16,12); ctx.fillStyle='#e2e8f0'; ctx.fillText('A*',152,31);
+}
+
+// ============================================================
+// DP PAGE
+// ============================================================
+const BUS_ROUTES = [
+  {id:"B1",min:8, max:50,pax:1400},{id:"B2",min:10,max:60,pax:1400},
+  {id:"B3",min:7, max:40,pax:1400},{id:"B4",min:7, max:44,pax:1409},
+  {id:"B5",min:6, max:36,pax:1389},{id:"B6",min:8, max:48,pax:1375},
+  {id:"B7",min:5, max:30,pax:1400},{id:"B8",min:4, max:24,pax:1417},
+  {id:"B9",min:9, max:56,pax:1393},{id:"B10",min:7,max:40,pax:1400},
+];
+
+function runDP() {
+  const totalBuses = parseInt(document.getElementById('busSlider').value);
+  // Greedy approximation for display speed
+  const sorted = [...BUS_ROUTES].sort((a,b)=>b.pax-a.pax);
+  let remaining = totalBuses;
+  const alloc = {};
+  sorted.forEach(r => { const b=Math.min(r.max, Math.max(r.min, Math.floor(remaining/sorted.length))); alloc[r.id]=b; remaining-=b; });
+  // Distribute leftovers
+  sorted.forEach(r => { if(remaining>0 && alloc[r.id]<r.max) { alloc[r.id]++; remaining--; } });
+  const totalPax = sorted.reduce((s,r) => s + alloc[r.id]*r.pax, 0);
+
+  document.getElementById('dpBusResult').innerHTML = `
+    <div class="stat-card" style="margin-bottom:14px">
+      <div class="stat-value">${(totalPax/1000).toFixed(0)}K</div>
+      <div class="stat-label">Daily Passengers Served (max)</div>
+    </div>
+    <table><tr><th>Route</th><th>Buses Assigned</th><th>Passengers/Bus</th><th>Daily Total</th></tr>
+    ${BUS_ROUTES.map(r=>`<tr><td>${r.id}</td><td>${alloc[r.id]||r.min}</td><td>${r.pax}</td><td>${((alloc[r.id]||r.min)*r.pax).toLocaleString()}</td></tr>`).join('')}
+    </table>`;
+
+  // Draw bar chart
+  const canvas = document.getElementById('dpCanvas');
+  const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+  const maxB = Math.max(...BUS_ROUTES.map(r=>alloc[r.id]||r.min));
+  const bW = (W-80)/BUS_ROUTES.length - 6;
+  BUS_ROUTES.forEach((r,i) => {
+    const b = alloc[r.id]||r.min;
+    const bh = (b/maxB)*(H-60);
+    const x = 40+i*(bW+6);
+    ctx.fillStyle='#7c3aed44'; ctx.fillRect(x, H-bh-30, bW, bh);
+    ctx.fillStyle='#7c3aed'; ctx.fillRect(x, H-bh-30, bW, 3);
+    ctx.fillStyle='#e2e8f0'; ctx.font='10px Space Mono'; ctx.textAlign='center';
+    ctx.fillText(b, x+bW/2, H-bh-36);
+    ctx.fillStyle='#64748b'; ctx.fillText(r.id, x+bW/2, H-10);
+  });
+}
+
+function runMaintenance() {
+  const budget = parseInt(document.getElementById('budgetSlider').value);
+  const poorRoads = [
+    {id:"1-8",   cond:6, dist:6.2},  {id:"1-3",   cond:7, dist:8.5},
+    {id:"3-9",   cond:6, dist:4.5},  {id:"8-12",  cond:5, dist:14.8},
+    {id:"10-11", cond:6, dist:8.7},  {id:"12-1",  cond:6, dist:12.7},
+    {id:"F2-3",  cond:7, dist:2.5},
+  ];
+  const selected = poorRoads.filter(r => {
+    const cost = Math.floor(r.dist*(10-r.cond)*2);
+    return cost<=budget;
+  });
+  const totalCost = selected.reduce((s,r)=>s+Math.floor(r.dist*(10-r.cond)*2),0);
+  document.getElementById('dpMaintenanceResult').innerHTML = `
+    <div class="grid-3" style="margin-bottom:12px">
+      <div class="stat-card"><div class="stat-value" style="font-size:1.4rem;color:var(--accent2)">${selected.length}</div><div class="stat-label">Roads Selected</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.4rem;color:var(--green)">${totalCost}M</div><div class="stat-label">EGP Used</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:1.4rem">${budget-totalCost}M</div><div class="stat-label">EGP Remaining</div></div>
+    </div>
+    <table><tr><th>Road</th><th>Current Cond.</th><th>Cost (M EGP)</th><th>Status</th></tr>
+    ${poorRoads.map(r=>{const cost=Math.floor(r.dist*(10-r.cond)*2); const sel=selected.includes(r); return `<tr>
+      <td>${r.id}</td><td>${r.cond}/10</td><td>${cost}M</td>
+      <td><span class="badge ${sel&&cost<=budget?'badge-green':'badge-red'}">${sel&&cost<=budget?'SELECTED':'DEFERRED'}</span></td>
+    </tr>`}).join('')}
+    </table>`;
+}
+
+// ============================================================
+// GREEDY PAGE
+// ============================================================
+function runGreedy() {
+  const period = document.getElementById('greedyTime').value;
+  const intersections = {};
+  Object.entries(TRAFFIC).forEach(([road, pat]) => {
+    const [u,v] = road.split('-');
+    const cap = EDGES.find(e=>String(e[0])===u&&String(e[1])===v)?.[3] || 2500;
+    const flow = pat[period]||pat.afternoon;
+    const ratio = flow/cap;
+    if (!intersections[u]) intersections[u]=[];
+    if (!intersections[v]) intersections[v]=[];
+    intersections[u].push({to:v,flow,cap,ratio,road});
+    intersections[v].push({to:u,flow,cap,ratio,road});
+  });
+
+  let html = '';
+  const topNodes = Object.entries(intersections).sort((a,b)=>Math.max(...b[1].map(r=>r.ratio))-Math.max(...a[1].map(r=>r.ratio))).slice(0,6);
+  topNodes.forEach(([node, roads]) => {
+    const sorted = roads.sort((a,b)=>b.ratio-a.ratio);
+    const totalR = sorted.reduce((s,r)=>s+r.ratio,0);
+    html += `<div style="margin-bottom:12px"><div style="font-weight:600;margin-bottom:6px;color:var(--text)">${getName(node)}</div>`;
+    sorted.forEach(r => {
+      const green = totalR>0 ? Math.round((r.ratio/totalR)*120) : 30;
+      const color = r.ratio>0.85?'var(--red)':r.ratio>0.7?'var(--yellow)':'var(--green)';
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:0.8rem">
+        <span style="color:var(--muted);width:100px">→ ${getName(r.to)}</span>
+        <div class="cong-bar" style="flex:1"><div class="cong-fill" style="width:${r.ratio*100}%;background:${color}"></div></div>
+        <span style="width:40px;text-align:right;color:${color};font-family:'Space Mono',monospace">${green}s</span>
+      </div>`;
+    }); html += '</div>';
+  });
+  document.getElementById('greedyResult').innerHTML = html;
+
+  // Congestion heatmap on canvas
+  const canvas = document.getElementById('greedyCanvas');
+  const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+  EDGES.forEach(([u,v,dist,cap]) => {
+    const key=`${u}-${v}`, rkey=`${v}-${u}`;
+    const pat = TRAFFIC[key]||TRAFFIC[rkey];
+    const flow = pat?pat[period]:1500;
+    const ratio = flow/cap;
+    const c1=getCoords(u), c2=getCoords(v);
+    const p1=project(c1.x,c1.y,W,H), p2=project(c2.x,c2.y,W,H);
+    ctx.strokeStyle=getCongestionColor(ratio); ctx.lineWidth=2+ratio*3;
+    ctx.beginPath(); ctx.moveTo(p1.px,p1.py); ctx.lineTo(p2.px,p2.py); ctx.stroke();
+  });
+  drawNodes(ctx, W, H);
+  // Legend
+  ctx.fillStyle='#64748b'; ctx.font='11px Cairo'; ctx.textAlign='left';
+  [[var_red='#ef4444','CRITICAL >85%'],[var_y='#f59e0b','HIGH 70-85%'],['#10b981','NORMAL <70%']].forEach(([c,l],i)=>{
+    ctx.fillStyle=c; ctx.fillRect(20,20+i*20,14,12); ctx.fillStyle='#e2e8f0'; ctx.fillText(l,40,31+i*20);
+  });
+}
+
+// ============================================================
+// ML PAGE
+// ============================================================
+const ML_PATTERNS = [
+  {road:"1-3",  cap:3000, morning:2800,afternoon:1500,evening:2600,night:800},
+  {road:"1-8",  cap:2500, morning:2200,afternoon:1200,evening:2100,night:600},
+  {road:"2-3",  cap:2800, morning:2700,afternoon:1400,evening:2500,night:700},
+  {road:"2-5",  cap:3200, morning:3000,afternoon:1600,evening:2800,night:650},
+  {road:"3-5",  cap:3500, morning:3200,afternoon:1700,evening:3100,night:800},
+  {road:"3-6",  cap:2000, morning:1800,afternoon:1400,evening:1900,night:500},
+  {road:"4-2",  cap:3800, morning:3600,afternoon:1800,evening:3300,night:750},
+  {road:"7-8",  cap:3500, morning:3200,afternoon:1700,evening:3000,night:700},
+  {road:"8-12", cap:2600, morning:2400,afternoon:1300,evening:2200,night:500},
+  {road:"5-11", cap:3100, morning:2900,afternoon:1500,evening:2700,night:650},
+  {road:"9-10", cap:1900, morning:1800,afternoon:1200,evening:1700,night:400},
+  {road:"10-11",cap:2400, morning:2200,afternoon:1300,evening:2100,night:500},
+  {road:"13-4", cap:4000, morning:3800,afternoon:2000,evening:3500,night:800},
+  {road:"F1-5", cap:3500, morning:3300,afternoon:2200,evening:3100,night:1200},
+];
+
+function predictHour(roadData, hour, dayType) {
+  // Map hour to period
+  let base;
+  if (hour>=6&&hour<10)       base=roadData.morning;
+  else if (hour>=10&&hour<16) base=roadData.afternoon;
+  else if (hour>=16&&hour<21) base=roadData.evening;
+  else                         base=roadData.night;
+  // Weekend reduction + small bell-curve shape within period
+  const dayMult = dayType===1 ? 0.82 : 1.0;
+  const sine = 1 + 0.08*Math.sin(Math.PI*(hour-6)/12);
+  return Math.min(base * dayMult * sine, roadData.cap);
+}
+
+function runMLPrediction() {
+  const idx = parseInt(document.getElementById('mlRoad').value);
+  const dayType = parseInt(document.getElementById('mlDayType').value);
+  const roadData = ML_PATTERNS[idx];
+  const predictions = Array.from({length:24},(_,h)=>({
+    hour:h, flow:predictHour(roadData,h,dayType), cap:roadData.cap,
+    ratio:predictHour(roadData,h,dayType)/roadData.cap
+  }));
+
+  // Simulated R² scores
+  const trainR2 = 0.87 + Math.random()*0.05;
+  const testR2  = 0.82 + Math.random()*0.05;
+  document.getElementById('mlTrainR2').textContent = trainR2.toFixed(3);
+  document.getElementById('mlTestR2').textContent  = testR2.toFixed(3);
+  document.getElementById('mlMetrics').innerHTML = `
+    <div class="algo-step"><div class="step-num">📐</div>
+    <div><div class="step-text">Road: <strong>${roadData.road}</strong></div>
+    <div class="step-sub">Capacity: ${roadData.cap.toLocaleString()} v/h | ${dayType===1?'Weekend':'Weekday'}</div></div></div>`;
+
+  // Draw chart
+  const canvas = document.getElementById('mlCanvas');
+  const ctx = clearCanvas(canvas); const W=canvas.width, H=canvas.height;
+  const pad={l:50,r:20,t:20,b:40};
+  const cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
+  const maxFlow = roadData.cap;
+
+  // Grid
+  ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=1;
+  [0.25,0.5,0.75,1.0].forEach(r => {
+    const y = pad.t + cH - r*cH;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cW,y); ctx.stroke();
+    ctx.fillStyle='#64748b'; ctx.font='10px Space Mono'; ctx.textAlign='right';
+    ctx.fillText((r*100).toFixed(0)+'%', pad.l-6, y+4);
+  });
+
+  // Flow area
+  ctx.beginPath();
+  predictions.forEach((p,i) => {
+    const x=pad.l+i/23*cW, y=pad.t+cH-p.ratio*cH;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.l+cW,pad.t+cH); ctx.lineTo(pad.l,pad.t+cH); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
+  grad.addColorStop(0,'rgba(0,212,255,0.3)'); grad.addColorStop(1,'rgba(0,212,255,0.02)');
+  ctx.fillStyle=grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle='#00d4ff'; ctx.lineWidth=2.5;
+  predictions.forEach((p,i) => {
+    const x=pad.l+i/23*cW, y=pad.t+cH-p.ratio*cH;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }); ctx.stroke();
+
+  // Critical threshold line
+  ctx.strokeStyle='#ef4444'; ctx.lineWidth=1; ctx.setLineDash([6,4]);
+  const critY = pad.t+cH-0.85*cH;
+  ctx.beginPath(); ctx.moveTo(pad.l,critY); ctx.lineTo(pad.l+cW,critY); ctx.stroke();
+  ctx.setLineDash([]); ctx.fillStyle='#ef4444'; ctx.font='10px Cairo'; ctx.textAlign='left';
+  ctx.fillText('Critical 85%', pad.l+4, critY-4);
+
+  // X labels
+  ctx.fillStyle='#64748b'; ctx.font='10px Space Mono'; ctx.textAlign='center';
+  [0,6,12,18,23].forEach(h => {
+    const x=pad.l+h/23*cW;
+    ctx.fillText(h+'h', x, H-8);
+  });
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(evt, id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (evt && evt.currentTarget) {
+    evt.currentTarget.classList.add('active');
+  }
+  // Init page
+  if (id==='dashboard') drawNetwork('all');
+  if (id==='mst') runMST(false);
+  if (id==='dijkstra') runDijkstra();
+  if (id==='astar') runAstar();
+  if (id==='compare') runComparison();
+  if (id==='dp') { runDP(); runMaintenance(); }
+  if (id==='greedy') runGreedy();
+  if (id==='ml') runMLPrediction();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = () => {
+  populateSelects();
+  drawNetwork('all');
+};
+</script>
+</body>
+</html>
